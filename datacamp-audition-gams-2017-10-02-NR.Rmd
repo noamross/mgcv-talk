@@ -1,0 +1,155 @@
+---
+title: "Shower Presentations with R Markdown"
+author: https://github.com/mangothecat/rmdshower
+ratio: '4x3' 
+output: 
+  rmdshower::shower_presentation:
+    self_contained: false
+    katex: true
+    ratio: 16x10
+    pandoc_args: [
+      "--from",  "markdown+autolink_bare_uris+ascii_identifiers+tex_math_single_backslash-implicit_figures-auto_identifiers+link_attributes"
+    ]
+    
+---
+
+
+# Nonlinear Models in R
+
+
+
+```{r setup, include=FALSE, cache=FALSE}
+library(viridis)
+library(ggplot2)
+library(reshape2)
+library(animation)
+library(mgcv)
+library(knitr)
+opts_chunk$set(cache=TRUE, echo=FALSE, warning=FALSE, error=FALSE)
+local({
+  hook_plot = knit_hooks$get('plot')
+  knit_hooks$set(plot = function(x, options) {
+    x = paste(x, collapse = '.')
+    if (!grepl('\\.svg', x)) return(hook_plot(x, options))
+    # read the content of the svg image and write it out without <?xml ... ?>
+    paste(readLines(x)[-1], collapse = '\n')
+  })
+})
+```
+
+<!--
+Hello and welcome to this brief intoduction to Non-Linear Modeling in R.
+Today I will be talking about creating Generalized Additive Models, which
+are a framework for making models with non-linear components.
+-->
+
+## Why Generalized Additive Models?
+
+![the tradeoff](tradeoff2.png){ width="100%" }
+
+<!--
+What is the advantage of generalized additive models, or GAMs?  They offer
+a middle ground between simple models, such as those we fit with linear
+regression, and much more complex machine learning models like neural networks.
+Linear models are easy to interpret and to use for inference: their parameters
+have clear interpretations, and it is easy to explain what they mean.  However,
+we often need to model more complex phenomena than can be represented by linear
+relationships.  In these cases out data often violate linear model assumptions,
+and these models are poor at prediction.  On the other hand, machine learning models like
+boosted regression trees or neural networks, can be very good at makeing predictions of complex relationships.
+The problem is that they are quite difficult to interpret, and one can rarely
+make inferences from the model results.  GAMs offer a middle ground: they
+can be fit to complex, nonlinear relationships and make good predictions in 
+these cases, but we are still able to
+do inferential statistics and understand and the underlying structure of our models
+-->
+
+## An Example
+
+
+```r
+
+```
+
+```{r exdata, dev='svg', fig.width=700/96, fig.height=400/96}
+set.seed(2) ## simulate some data...
+dat <- gamSim(1, n=400, dist="normal", scale=1, verbose=FALSE)
+dat <- dat[,c("y", "x0", "x1", "x2", "x3")]
+p <- ggplot(dat,aes(y=y,x=x1)) +
+      geom_point() +
+      theme_minimal() + ylim(0,20)
+print(p)
+```
+<!-- So what kind of data are GAMs useful for?  Let's use an example to explores.
+Here we have some X and Y data that we've plotted against each other.  Clearly
+there's some kind of relationship, and also a lot of noise in that relationship.
+What's the best way to describe that relationship?-->
+
+## An Example: Linear Model 
+
+```{r eval=FALSE, echo=TRUE}
+lm(y ~ x1, data=dat)  # y = a + b*x
+```
+
+```{r islinear, dev='svg', fig.width=700/96, fig.height=400/96}
+p + geom_smooth(method="lm")
+```
+
+<!-- We could use a linear model to fit this relationship and make predictions. Here
+I've fit a linear model and plotted it against the data.  But is the relationship
+really linear? -->
+
+## An Example: Quadradic Model
+
+```{r eval=FALSE, echo=TRUE}
+lm(y ~ poly(x1, 2), data=dat) # y = a + b1*x + b2*x^2
+```
+
+```{r linquad, dev='svg',  fig.width=700/96, fig.height=400/96}
+p + geom_smooth(method="lm") +
+          geom_smooth(method="lm", formula=y ~ poly(x, 2), col="green")
+```
+<!-- Alternatively, we could fit a quadratic model.  A quadratic model has
+a quadratic term: x-squared.  Here I've fit this model and plotted it against
+the data.  The quadratic model provides a better fit to the data. -->
+
+## Example: More Complexity
+
+```{r eval=FALSE, echo=TRUE}
+lm(y ~ poly(x2, 2), data=dat)
+```
+
+```{r morecomplex, dev='svg',  fig.width=700/96, fig.height=400/96}
+p2 <- ggplot(dat, aes(y=y, x=x2)) + geom_point() + 
+    theme_minimal() + ylim(0,20)
+
+p2 + geom_smooth(method="lm") +
+    geom_smooth(method="lm", formula=y ~ poly(x, 2), col="green")
+```
+<!-- However, what if we have much more complex relationships? Neither a linear
+nor a quadratic model do well for us here. -->
+
+## Example: More Complexity
+
+```{r eval=FALSE, echo=TRUE}
+lm(y ~ poly(x2, 28), data=dat) # y = a + b1*x + ... + b28*x^28
+```
+
+```{r morecomplex2, dev='svg',  fig.width=700/96, fig.height=400/96}
+p2 + geom_smooth(method="lm", formula=y~poly(x, 25), col="red") 
+```
+<!-- Even if we increase our complexity to higher levels, fitting a 3rd order, or cubic model (in yellow),
+or a 4th order, or quartic model (in orange), we still do not fit our data well.  What we need
+is a model that adjusts its complexity based on our data. -->
+
+## Example: More Complexity
+
+```{r eval=FALSE, echo=TRUE}
+gam(y ~ s(x2), data=dat)
+```
+
+```{r morecomplexgam, dev='svg',  fig.width=700/96, fig.height=400/96}
+p2 + geom_smooth(method=mgcv::gam, formula=y~s(x), col="purple")
+```
+<!-- However, what if we have much more complex relationships? Neither a linear
+nor a quadratic model do well for us here. -->
